@@ -8,10 +8,12 @@
 #include <iomanip>
 
 using std::cout;
+using std::cin;
 using std::endl;
 using std::string;
-using std::vector;
+
 using std::ifstream;
+using std::vector;
 
 class AStar
 {
@@ -44,7 +46,7 @@ class AStar
 public:
     int mapWidth;
     int mapHeight;
-   
+    int map;
 
 
 
@@ -57,43 +59,83 @@ public:
     char possibleRoute = 'M';
     char optimalRoute = 'B';
 
+    //select maze with user input
+    void SelectFile()
+    {
+        cout << "Please select file by inputting 1 or 2:" << endl;
+        cin >> map;
+        //if input is not an integer clear input and ask the user for new input until an integer is given
+        while (std::cin.fail()) {
+            std::cout << "Invalid input" << std::endl;
+            cout << "Please select file by inputting 1 or 2:" << endl;
+            std::cin.clear();
+            std::cin.ignore(256, '\n');
+            std::cin >> map;
+        }
+        ReadFile();
+    }
     void ReadFile()
     {
-        ifstream file1("../maze1.txt");
-       // ifstream file1("../maze2.txt");
-
-        //if there is an error opening the file
-        if (!file1.is_open())
-        {
-            cout << "error" << endl;
-        }
-
-        //read the file line by line
-        while (getline(file1, input))
-        {
-            //instantiate a chararray
-            char* rowArray = new char[input.length() + 1];
-            //use legth of input because there is no length of chararray yet
-            for (int i = 0; i < input.length() + 1; i++)
-            {
-                //transfer the characters from input string to the char array
-                rowArray[i] = input[i];
-            }
-            //add the chararray to 
+        if (map == 1){
+            cout << "maze1 selected" << endl;
+            ifstream file("../maze1.txt");
           
-            grid.push_back(rowArray);
+            if (!file.is_open())             //if there is an error opening the file give error message
+            {
+                cout << "error" << endl;
+            }
+
+            while (getline(file, input)) //read lines from file
+            {
+               
+                char* rowArray = new char[input.length() + 1];  //create a chararray
+               
+                for (int i = 0; i < input.length() + 1; i++)  //use length of input because there is no length of chararray yet
+                {
+                   
+                    rowArray[i] = input[i];  //transfer the characters from input string to the char array
+                }
+               
+                grid.push_back(rowArray);  //add the chararray to grid
+            }
         }
+        else if (map == 2){
+            cout << "maze2 selected" << endl;
+            ifstream file("../maze2.txt");
+
+            if (!file.is_open())             //if there is an error opening the file give error message
+            {
+                cout << "error" << endl;
+            }
+            while (getline(file, input)) //read lines from file
+            {
+             
+                char* rowArray = new char[input.length() + 1];    //create a chararray
+                //use legth of input because there is no length of chararray yet
+                for (int i = 0; i < input.length() + 1; i++)
+                {
+                    //transfer the characters from input string to the char array
+                    rowArray[i] = input[i];
+                }
+                //add the chararray to 
+
+                grid.push_back(rowArray);
+            }
+        }
+        else //if input was another integer
+        {
+            cout << "no file selected" << endl;
+            SelectFile();
+
+        }
+       
+
+      
         mapWidth = input.length();
         mapHeight = grid.size();
     }
-    void Print()
+    void PrintGrid()
     {
-        // for (char* row : grid)
-         //{
-        // cout << row <<endl;
-         //}
-
-
         for (int j = 0; j < grid.size(); j++) {
             for (int i = 0; i < input.length(); i++) {
                 cout << grid[j][i];
@@ -178,8 +220,11 @@ int main()
 {
 
     AStar executive;
-    executive.ReadFile();
-    executive.Print();
+    executive.SelectFile();
+   
+    executive.PrintGrid();
+
+
    // executive.FindPlayer();
     //executive.FindExits();
    
