@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <list>
+#include <cmath>
 
 using std::cout;
 using std::cin;
@@ -25,6 +26,7 @@ class AStar
 
     vector <char*> grid;
 
+    
 
 
     string input;
@@ -32,22 +34,24 @@ class AStar
 
     struct Node
     {
-        int x_coordinate;
-        int y_coordinate;
-        float fGlobalGoal;
-        float fLocalGoal;
+        //nodes will be listed with an index: y * mapWidth + x
+        int x;
+        int y;
+        char mapSymbol;
+        float fLocalGoal; // g
+        float fGlobalGoal; // h
         bool obstacle; //if node is an obstacle
         bool visited; //if node is already visited
         vector <Node*> vecNeighbours; //possible next nodes, vector of pointers
-        Node* parent; //previous node, pointer
+        Node* parent = nullptr; //previous node, pointer
     };
 
+    list <Node*> bestNodes;
 
-    list <Node*> listNotTestedNodes;
 
-    Node* nodes = nullptr; //general node
-    Node* nodeStart = nullptr; //starting node, where the player is located in the file but found later
-    Node* nodeEnd = nullptr; //goal node
+    Node *nodes = nullptr; //general node
+    Node *nodeStart = nullptr; //starting node, where the player is located in the file but found later
+    Node *nodeEnd = nullptr; //goal node
 
     Node firstExit;
     Node secondExit;
@@ -57,6 +61,7 @@ public:
     int mapWidth;
     int mapHeight;
     int map;
+    int numberOfExits = 0;
 
 
 
@@ -65,129 +70,53 @@ public:
     char block = '#';
     char freeSpace = ' ';
     char exit = 'E';
-    //characters to be added on the grid
-    char possibleRoute = 'M';
-    char optimalRoute = 'B';
 
-    //select maze with user input
-    void SelectFile()
-    {
-        cout << "Please select file by inputting 1 or 2:" << endl;
-        cin >> map;
-        //if input is not an integer clear input and ask the user for new input until an integer is given
-        while (cin.fail()) {
-            cout << "Invalid input" << endl;
-            cout << "Please select file by inputting 1 or 2:" << endl;
-            cin.clear();
-            cin.ignore(256, '\n');
-            cin >> map;
-        }
-        ReadFile();
-    }
+    char visitedNode = 'V';
+    char optimalNode = 'O';
+
     void ReadFile()
     {
-        if (map == 1) {
-            cout << "maze1 selected" << endl;
-            ifstream file("../maze1.txt");
 
-            if (!file.is_open())             //if there is an error opening the file give error message
-            {
-                cout << "error" << endl;
-            }
+        ifstream file("../maze2.txt");
 
-            while (getline(file, input)) //read lines from file
-            {
-
-                char* rowArray = new char[input.length() + 1];  //create a chararray
-
-                for (int i = 0; i < input.length() + 1; i++)  //use length of input because there is no length of chararray yet
-                {
-
-                    rowArray[i] = input[i];  //transfer the characters from input string to the char array
-                }
-
-                grid.push_back(rowArray);  //add the chararray to grid
-            }
-        }
-        else if (map == 2) {
-            cout << "maze2 selected" << endl;
-            ifstream file("../maze2.txt");
-
-            if (!file.is_open())             //if there is an error opening the file give error message
-            {
-                cout << "error" << endl;
-            }
-            while (getline(file, input)) //read lines from file
-            {
-
-                char* rowArray = new char[input.length() + 1];    //create a chararray
-                //use legth of input because there is no length of chararray yet
-                for (int i = 0; i < input.length() + 1; i++)
-                {
-                    //transfer the characters from input string to the char array
-                    rowArray[i] = input[i];
-                }
-                //add the chararray to 
-
-                grid.push_back(rowArray);
-            }
-        }
-        else //if input was another integer
+        if (!file.is_open())             //if there is an error opening the file give error message
         {
-            cout << "no file selected" << endl;
-            SelectFile();
-
+            cout << "error" << endl;
         }
+
+        while (getline(file, input)) //read lines from file
+        {
+
+            char* rowArray = new char[input.length() + 1];  //create a chararray
+
+            for (int i = 0; i < input.length() + 1; i++)  //use length of input because there is no length of chararray yet
+            {
+
+                rowArray[i] = input[i];  //transfer the characters from input string to the char array
+            }
+
+            grid.push_back(rowArray);  //add the chararray to grid
+        }
+
 
 
 
         mapWidth = input.length();
         mapHeight = grid.size();
-        OnUserCreate();
+        CreateMap();
+        DrawMap();
 
-        //SolveAStar();
-       // Draw();
 
     }
-    void PrintGrid()
-    {
-        for (int j = 0; j < grid.size(); j++) {
-            for (int i = 0; i < input.length(); i++) {
-                cout << grid[j][i];
-            }
-            cout << endl;
-        }
-        //    FindPlayer();
-
-    }
-    void FindPlayer()
-    {
-
-        for (int j = 0; j < grid.size(); j++)
-        {
-            for (int i = 0; i < input.length(); i++)
-            {
-                char a = grid[j][i];
 
 
-                if (a == player)
-                {
-                    cout << "Player is located in (row, column): " << endl;
-                    nodeStart->x_coordinate = i;
-                    nodeStart->y_coordinate = j;
-                    cout << nodeStart->y_coordinate << ", " << nodeStart->x_coordinate << endl;
+    void CreateMap() {
 
-                }
-            }
-        }
-      
-    }
-
-    virtual bool OnUserCreate() {
-        char a;
-        int k = 0;
         nodes = new Node[mapWidth * mapHeight];
+
         for (int y = 0; y < mapHeight; y++)
+        {
+
             for (int x = 0; x < mapWidth; x++)
             {
                 char a = grid[y][x];
@@ -200,69 +129,209 @@ public:
                     cout << a << endl;
 
                 }
-                nodes[y * mapWidth + x].x_coordinate = x;
-                nodes[y * mapWidth + x].y_coordinate = y;
+                nodes[y * mapWidth + x].x = x;
+                nodes[y * mapWidth + x].y = y;
                 if (a == block) nodes[y * mapWidth + x].obstacle = true;
                 else nodes[y * mapWidth + x].obstacle = false;
                 nodes[y * mapWidth + x].parent = nullptr;
                 nodes[y * mapWidth + x].visited = false;
+                nodes[y * mapWidth + x].mapSymbol = a;
                 if (a == player)
                 {
-                    nodeStart = nodes;
+                    nodes[y * mapWidth + x].mapSymbol = '^';
+                    Node player = nodes[y * mapWidth + x];
+                    nodeStart = &player;
+
 
                 }
                 if (a == exit)
                 {
-                    switch (k) {
+                    switch (numberOfExits) {
                     case 0:
-                        firstExit.x_coordinate = x;
-                        firstExit.y_coordinate = y;
+                        nodes[y * mapWidth + x].mapSymbol = 'E';
+                        firstExit = nodes[y * mapWidth + x];
 
-                       // cout << firstExit.x_coordinate << firstExit.y_coordinate << endl;
-                        k++;
+                        // cout << firstExit.x << firstExit.y << endl;
+                        numberOfExits++;
                         break;
 
                     case 1:
+                        nodes[y * mapWidth + x].mapSymbol = 'E';
+                        secondExit = nodes[y * mapWidth + x];
 
-                        secondExit.x_coordinate = x;
-                        secondExit.y_coordinate = y;
-                      //  cout << secondExit.x_coordinate + ", " << secondExit.y_coordinate << endl;
-                        k++;
+                        numberOfExits++;
                         break;
                     case 2:
-                        thirdExit.x_coordinate = x;
-                        thirdExit.y_coordinate = y;
-                     //   cout << thirdExit.x_coordinate + ", " << thirdExit.y_coordinate << endl;
-                        k++;
+                        nodes[y * mapWidth + x].mapSymbol = 'E';
+                        thirdExit = nodes[y * mapWidth + x];
+                        numberOfExits++;
                         break;
                     }
                 }
-                
+                if (a == block) { nodes[y * mapWidth + x].mapSymbol = '#'; }
+
             }
-        cout << "Exit(s) are located in (row,column):" << endl;
-        cout << firstExit.y_coordinate << +", " << firstExit.x_coordinate << endl;
-        if (k > 1)
+            for (int y = 0; y < mapHeight; y++)
+            {
+                for (int x = 0; x < mapWidth; x++)
+                {
+                    nodes[y * mapWidth + x].visited = false;
+                    nodes[y * mapWidth + x].fGlobalGoal = INFINITY;
+                    nodes[y * mapWidth + x].fLocalGoal = INFINITY;
+                    nodes[y * mapWidth + x].parent = nullptr;	// No parents
+                }
+               
+            }
+        }
+      
+        FindNeighbours();
+       
+        while (numberOfExits >= 0)
         {
-            cout << secondExit.y_coordinate << +", " << secondExit.x_coordinate << endl;
-            cout << thirdExit.y_coordinate << +", " << thirdExit.x_coordinate << endl;
+         
+            switch (numberOfExits)
+
+            {
+            case 3:
+                nodeEnd = &thirdExit;
+                SolveAStar();
+               
+                break;
+            case 2:
+                nodeEnd = &secondExit;
+                SolveAStar();
+              
+                break;
+            case 1:
+                nodeEnd = &firstExit;
+                
+                SolveAStar();
+               
+                break;
+            default:
+                cout << "error/no more exits" << endl;
+                break;
+            }
+            numberOfExits--;
+            cout << "here" << endl;
+            cout << numberOfExits << endl;
         }
 
-     /*   for (int y = 0; y < mapHeight; y++) {
-            for (int x = 0; x < mapWidth; x++)
-            {
-                if (y > 0)
-                    nodes[y * mapWidth + x].vecNeighbours.push_back(&nodes[(y - 1) * mapWidth + (x + 0)]);
-                if (y < mapHeight - 1)
-                    nodes[y * mapWidth + x].vecNeighbours.push_back(&nodes[(y + 1) * mapWidth + (x + 0)]);
-                if (x > 0)
-                    nodes[y * mapWidth + x].vecNeighbours.push_back(&nodes[(y + 0) * mapWidth + (x - 1)]);
-                if (x < mapWidth - 1)
-                    nodes[y * mapWidth + x].vecNeighbours.push_back(&nodes[(y + 0) * mapWidth + (x + 1)]);
-            }
-        }*/
-
-        return true;
     }
+
+   
+   void DrawMap()
+    {
+       
+        for (int y = 0; y < mapHeight; y++)
+        {
+
+            for (int x = 0; x < mapWidth; x++) {
+                cout << nodes[y * mapWidth + x].mapSymbol;
+            }
+            cout<< endl;
+            }
+    }
+   public :
+       void FindNeighbours() {
+       for (int x = 0; x < mapWidth; x++)
+       {
+           for (int y = 0; y < mapHeight; y++)
+           {
+               if (y > 0)
+                   nodes[y * mapWidth + x].vecNeighbours.push_back(&nodes[(y - 1) * mapWidth + (x + 0)]);
+               if (y < mapHeight - 1)
+                   nodes[y * mapWidth + x].vecNeighbours.push_back(&nodes[(y + 1) * mapWidth + (x + 0)]);
+               if (x > 0)
+                   nodes[y * mapWidth + x].vecNeighbours.push_back(&nodes[(y + 0) * mapWidth + (x - 1)]);
+               if (x < mapWidth - 1)
+                   nodes[y * mapWidth + x].vecNeighbours.push_back(&nodes[(y + 0) * mapWidth + (x + 1)]);
+               cout << nodes[y * mapWidth + x].vecNeighbours.size() << endl;
+           }
+       }
+
+   }
+  
+
+   
+
+   void SolveAStar()
+   {
+       cout << nodeStart->vecNeighbours.size() << endl;
+
+       cout << "blaa" << endl;
+       auto distance = [](Node* a, Node* b) // Use Pythagoras theorem to get distance
+       {
+           return sqrtf((a->x - b->x) * (a->x - b->x) + (a->y - b->y) * (a->y - b->y));
+       };
+       auto heuristic = [distance](Node* a, Node* b) //calculate distance between nodes
+       {
+           return distance(a, b);
+       };
+
+      
+
+       Node *nodeCurrent = nodeStart;
+    
+
+       nodeStart->fLocalGoal = 0.0f;
+       nodeStart->fGlobalGoal = heuristic(nodeStart, nodeEnd);
+
+       list <Node*> listNotTestedNodes;
+       listNotTestedNodes.push_back(nodeStart);
+   
+       //check that there are neighbours
+       if (nodes[nodeCurrent->y * mapWidth + nodeCurrent->x].vecNeighbours.empty())
+       {
+           cout << "error, no existing neighbours" << endl;
+       }
+       else 
+       {
+       cout << "number of neighbours = " << nodes[nodeCurrent->y * mapWidth + nodeCurrent->x].vecNeighbours.size() << endl;
+       cout << nodeCurrent->y << nodeCurrent->x << endl;
+       }
+       for (auto nodeNeighbour : nodeCurrent->vecNeighbours)
+       {
+           cout << nodeCurrent->fLocalGoal << endl;
+           // ... and only if the neighbour is not visited and is 
+           // not an obstacle, add it to NotTested List
+           if (!nodeNeighbour->visited && nodeNeighbour->mapSymbol == '#')
+               listNotTestedNodes.push_back(nodeNeighbour);
+
+           // Calculate the neighbours potential lowest parent distance
+           float fPossiblyLowerGoal = nodeCurrent->fLocalGoal + distance(nodeCurrent, nodeNeighbour);
+
+
+           // If choosing to path through this node is a lower distance than what 
+           // the neighbour currently has set, update the neighbour to use this node
+           // as the path source, and set its distance scores as necessary
+           if (fPossiblyLowerGoal < nodeNeighbour->fLocalGoal)
+
+
+               nodeNeighbour->parent = nodeCurrent;
+           nodeNeighbour->fLocalGoal = fPossiblyLowerGoal;
+           bestNodes.push_back(nodeCurrent);
+
+           // The best path length to the neighbour being tested has changed, so
+           // update the neighbour's score. The heuristic is used to globally bias
+           // the path algorithm, so it knows if its getting better or worse. At some
+           // point the algo will realise this path is worse and abandon it, and then go
+           // and search along the next best path.
+           nodeNeighbour->fGlobalGoal = nodeNeighbour->fLocalGoal + heuristic(nodeNeighbour, nodeEnd);
+
+       }
+
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   }
 
 
 };
@@ -271,15 +340,10 @@ int main()
 {
 
     AStar executive;
-    executive.SelectFile();
-    //executive.SolveAStar();
-    executive.FindPlayer();
- 
+    executive.DrawMap();
+    executive.ReadFile();
+    
 
-   // executive.FindPlayer();
-    //executive.FindExits();
-   
-  
     return 0;
 }
 
