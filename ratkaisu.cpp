@@ -90,7 +90,7 @@ public:
     {
         if (map == 1) {
             cout << "maze1 selected" << endl;
-            ifstream file("../maze1.txt");
+            ifstream file("/maze1.txt");
 
             if (!file.is_open())             //if there is an error opening the file give error message
             {
@@ -113,7 +113,7 @@ public:
         }
         else if (map == 2) {
             cout << "maze2 selected" << endl;
-            ifstream file("../maze2.txt");
+            ifstream file("/maze2.txt");
 
             if (!file.is_open())             //if there is an error opening the file give error message
             {
